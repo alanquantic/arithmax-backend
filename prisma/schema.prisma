@@ -1,0 +1,249 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// 1. Define el generador de cliente (TypeScript)
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 2. Define la conexión a tu base de datos (Neon)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // Toma la URL de tu archivo .env
+}
+
+
+// ===============================================
+// MODELOS DE BASE DE DATOS
+// ===============================================
+
+// --- 1. Tablas Principales (User, License) ---
+
+model User {
+  id         Int      @id
+  email      String   @unique
+  passwordHash String? @map("password_hash")
+  firstName  String?  @map("first_name")
+  lastName   String?  @map("last_name")
+  scdLastName String?  @map("scd_last_name")
+  birthDate  DateTime? @db.Date @map("birth_date")
+  country    String?
+  gender     String?
+  phone      String?
+  avatar     String?  @db.Text
+
+  // Campos de 'Company' fusionados
+  companyName      String?  @map("company_name")
+  companyDirection String?  @db.Text @map("company_direction")
+  companyPhone     String?  @map("company_phone")
+  companyWebsite   String?  @db.Text @map("company_website")
+  companyLogo      String?  @db.Text @map("company_logo")
+
+  // Campo JSONB
+  devices Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  license     License?      // 1-a-1 con License
+  consultants Consultant[]  // 1-a-N con Consultant
+  guest       Guest?        // 1-a-1 con Guest
+
+  @@map("users")
+}
+
+model License {
+  id             Int       @id @default(autoincrement())
+  userId         Int       @unique @map("user_id")
+  status         Int?      @default(0) @db.SmallInt // Mapea a tu SMALLINT (0 | 1)
+  expirationDate DateTime? @map("expiration_date")
+  planId         String?   @map("plan_id")
+
+  // Relación
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("licenses")
+}
+
+
+// --- 2. Tablas de "Guest" ---
+
+model Guest {
+  id        Int     @id @default(autoincrement())
+  userId    Int     @unique @map("user_id")
+  
+  // 'GuestEnergyPartner'
+  partnerName     String? @map("partner_name")
+  partnerMeetYear Int?    @map("partner_meet_year")
+  
+  // 'GuestEnergyGroup'
+  groupName String? @map("group_name")
+  groupYear Int?    @map("group_year")
+
+  // Relaciones
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestPartners     GuestPartner[]
+  guestGroupMembers GuestGroupMember[]
+
+  @@map("guests")
+}
+
+model GuestPartner {
+  id          String   @id
+  guestId     Int      @map("guest_id")
+  names       String?
+  lastName    String?  @map("last_name")
+  scdLastName String?  @map("scd_last_name")
+  date        DateTime? @db.Date
+
+  // Relación
+  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@map("guest_partners")
+}
+
+model GuestGroupMember {
+  id          String   @id
+  guestId     Int      @map("guest_id")
+  name        String?
+  lastName    String?  @map("last_name")
+  scdLastName String?  @map("scd_last_name")
+  date        DateTime? @db.Date
+  dateInit    Int?     @map("date_init")
+
+  // Relación
+  guest Guest @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@map("guest_group_members")
+}
+
+
+// --- 3. Tablas de "Consultant" ---
+
+model Consultant {
+  id           String   @id
+  userId       Int      @map("user_id")
+  company      String?
+  date         DateTime? @db.Date
+  email        String?
+  gender       String?
+  lastName     String?  @map("last_name")
+  names        String?
+  nationality  String?
+  phone        String?
+  scdLastName  String?  @map("scd_last_name")
+  
+  // El único campo JSONB que permitimos
+  group        Json?
+
+  // Relaciones
+  user         User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes        ConsultantNote[]
+  partners     ConsultantPartner[]
+  createNames  ConsultantCreateName[]
+  partnerData  ConsultantPartnerData[]
+  groupData    ConsultantGroupData[]
+
+  @@map("consultants")
+}
+
+model ConsultantNote {
+  id            Int    @id @default(autoincrement())
+  consultantId  String @map("consultant_id")
+  dateKey       String @map("date_key")
+  pathKey       String @map("path_key")
+  value         String? @db.Text
+
+  // Relación
+  consultant Consultant @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+
+  @@unique([consultantId, dateKey, pathKey])
+  @@map("consultant_notes")
+}
+
+model ConsultantPartner {
+  id           String   @id
+  consultantId String   @map("consultant_id")
+  names        String?
+  lastName     String?  @map("last_name")
+  scdLastName  String?  @map("scd_last_name")
+  date         DateTime? @db.Date
+
+  // Relación
+  consultant Consultant @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+
+  @@map("consultant_partners")
+}
+
+model ConsultantCreateName {
+  id           String   @id
+  consultantId String   @map("consultant_id")
+  name         String?
+  lastName     String?  @map("last_name")
+  scdLastName  String?  @map("scd_last_name")
+  birthDate    DateTime? @db.Date @map("birth_date")
+  isPerson     Boolean? @map("is_person")
+
+  // Relación
+  consultant Consultant @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+
+  @@map("consultant_create_names")
+}
+
+model ConsultantPartnerData {
+  id           String   @id
+  consultantId String   @map("consultant_id")
+  name         String?
+  date         DateTime? @db.Date
+  yearMeet     Int?     @map("year_meet")
+
+  // Relación
+  consultant Consultant                      @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+  partners   ConsultantPartnerDataPartner[]
+
+  @@map("consultant_partner_data")
+}
+
+model ConsultantPartnerDataPartner {
+  id            String   @id
+  partnerDataId String   @map("partner_data_id")
+  names         String?
+  lastName      String?  @map("last_name")
+  scdLastName   String?  @map("scd_last_name")
+  date          DateTime? @db.Date
+
+  // Relación
+  partnerData ConsultantPartnerData @relation(fields: [partnerDataId], references: [id], onDelete: Cascade)
+
+  @@map("consultant_partner_data_partners")
+}
+
+model ConsultantGroupData {
+  id           String   @id
+  consultantId String   @map("consultant_id")
+  name         String?
+  description  String?  @db.Text
+  date         DateTime? @db.Date
+  lastInit     Int?     @map("last_init")
+
+  // Relación
+  consultant Consultant                    @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+    members    ConsultantGroupDataMember[]
+  @@map("consultant_group_data")
+}
+
+model ConsultantGroupDataMember {
+  id          String   @id
+  groupDataId String   @map("group_data_id")
+  name        String?
+  lastName    String?  @map("last_name")
+  scdLastName String?  @map("scd_last_name")
+  date        DateTime? @db.Date
+  dateInit    Int?     @map("date_init")
+
+  // Relación
+  groupData ConsultantGroupData @relation(fields: [groupDataId], references: [id], onDelete: Cascade)
+
+  @@map("consultant_group_data_members")
+}
