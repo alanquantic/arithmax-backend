@@ -1,15 +1,10 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { GuestEnergyModel } from '../models/guestEnergyModel';
 import { GuestGroupMemberModel } from '../models/guestGroupModel';
 import { GuestModel } from '../models/guestModel';
 import { GuestPartnerModel } from '../models/guestPartnerModel';
-import {
-  DatabaseError,
-  NotFoundError,
-  ValidationError,
-} from '../utils/customErrors';
-
-const prisma = new PrismaClient();
+import { DatabaseError, NotFoundError, ValidationError } from '../utils/customErrors';
 
 export class GuestEnergyRepository {
   async getByUserId(userId: number): Promise<GuestEnergyModel> {
@@ -27,7 +22,18 @@ export class GuestEnergyRepository {
       });
 
       if (!guest) {
-        throw new NotFoundError('Guest energy not found');
+        return {
+          guest: {
+            id: 0,
+            userId: Number(userId),
+            partnerName: null,
+            partnerMeetYear: null,
+            groupName: null,
+            groupYear: null,
+          },
+          guestPartners: [],
+          guestGroupMembers: [],
+        };
       }
 
       return {
@@ -43,10 +49,6 @@ export class GuestEnergyRepository {
         guestGroupMembers: guest.guestGroupMembers,
       };
     } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-
       throw new DatabaseError('Failed to get guest energy', error as Error);
     }
   }

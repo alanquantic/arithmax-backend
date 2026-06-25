@@ -1,15 +1,25 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import { ValidationError } from '../utils/customErrors';
+
+const jwt: {
+  verify: (token: string, secret: string) => unknown;
+} = require('jsonwebtoken');
 
 type AuthTokenPayload = {
   userId: number;
   email: string;
 };
 
+type AuthenticatedRequest = express.Request & {
+  user?: {
+    id: number;
+    email: string;
+  };
+};
+
 export class AuthMiddleware {
   static authenticate(
-    req: express.Request,
+    req: AuthenticatedRequest,
     res: express.Response,
     next: express.NextFunction
   ) {

@@ -1,12 +1,11 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { ConsultantNoteModel } from '../models/consultantNoteModel';
 import {
   DatabaseError,
   NotFoundError,
   ValidationError,
 } from '../utils/customErrors';
-
-const prisma = new PrismaClient();
 
 export class ConsultantNoteRepository {
   async create(

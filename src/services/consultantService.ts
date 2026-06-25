@@ -13,8 +13,8 @@ export class ConsultantService {
     return this.consultantRepository.findAll();
   }
 
-  async create(data: Prisma.ConsultantCreateInput): Promise<ConsultantModel> {
-    ConsultantValidator.validateCreateData(data);
+  async create(data: Prisma.ConsultantUncheckedCreateInput): Promise<ConsultantModel> {
+    ConsultantValidator.validateCreateData(data as unknown as Prisma.ConsultantCreateInput);
 
     return this.consultantRepository.create(data);
   }

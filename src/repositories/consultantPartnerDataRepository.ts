@@ -1,11 +1,10 @@
-import {ConsultantPartnerDataModel, ConsultantPartnerDataPartnerModel}from '../models/consultantPartnerDataModel';
+import { Prisma } from "@prisma/client";
+import { prisma } from "../lib/prisma";
+import {ConsultantPartnerDataModel, ConsultantPartnerDataModelWithRelations, ConsultantPartnerDataPartnerModel}from '../models/consultantPartnerDataModel';
 import { DatabaseError, NotFoundError, ValidationError } from "../utils/customErrors";
-import { Prisma, PrismaClient } from "@prisma/client";
-
-const prisma =  new PrismaClient();
 
 export class ConsultantPartnerDataRepository {
-    async create(data: Prisma.ConsultantPartnerDataCreateInput): Promise<ConsultantPartnerDataModel> {
+    async create(data: Prisma.ConsultantPartnerDataUncheckedCreateInput): Promise<ConsultantPartnerDataModel> {
         if(!data) {
             throw new ValidationError('Partner data is required');
         }
@@ -38,6 +37,45 @@ export class ConsultantPartnerDataRepository {
         }
         catch(error){
             throw new DatabaseError('Failed to create Partner ', error as Error);
+        }
+    }
+    async updatePartner(id: string, data: Prisma.ConsultantPartnerDataPartnerUpdateInput): Promise<ConsultantPartnerDataPartnerModel>{
+        if(!id){
+            throw new ValidationError('Partner id is required');
+        }
+        try{
+            return await prisma.consultantPartnerDataPartner.update({
+                where: { id },
+                data,
+            });
+        }
+        catch(error){
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError &&
+                error.code === 'P2025'
+            ) {
+                throw new NotFoundError('Partner not found');
+            }
+            throw new DatabaseError('Failed to update Partner ', error as Error);
+        }
+    }
+    async deletePartner(id: string): Promise<ConsultantPartnerDataPartnerModel>{
+        if(!id){
+            throw new ValidationError('Partner id is required');
+        }
+        try{
+            return await prisma.consultantPartnerDataPartner.delete({
+                where: { id },
+            });
+        }
+        catch(error){
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError &&
+                error.code === 'P2025'
+            ) {
+                throw new NotFoundError('Partner not found');
+            }
+            throw new DatabaseError('Failed to delete Partner ', error as Error);
         }
     }
 
@@ -85,13 +123,16 @@ export class ConsultantPartnerDataRepository {
         }
     }
 
-    async get(id: string): Promise<ConsultantPartnerDataModel>{
+    async get(id: string): Promise<ConsultantPartnerDataModelWithRelations>{
         if(!id){
             throw new ValidationError(' PartnerData id is required');
         }
         try{
             const partnerData =  await prisma.consultantPartnerData.findUnique({
                 where: {id},
+                include: {
+                    partners: true,
+                },
             });
             if(!partnerData){
                 throw new NotFoundError('PartnerData not found');
@@ -105,7 +146,7 @@ export class ConsultantPartnerDataRepository {
             throw new DatabaseError('Failed to get PartnerData', error as Error);
         }
     }
-    async getAll(consultantId: string): Promise<ConsultantPartnerDataModel[]>{
+    async getAll(consultantId: string): Promise<ConsultantPartnerDataModelWithRelations[]>{
         if(!consultantId){
             throw new ValidationError('Consultant ID is required');
         }
@@ -113,7 +154,10 @@ export class ConsultantPartnerDataRepository {
             return await prisma.consultantPartnerData.findMany({
                 where: {
                     consultantId: consultantId
-                }
+                },
+                include: {
+                    partners: true,
+                },
             });
         }
         catch(error){

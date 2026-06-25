@@ -3,15 +3,33 @@ import { Controller } from "./controller";
 import express from 'express';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
 
+const getParam = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+
+const normalizeOptionalDate = (value: unknown) => {
+    if (!value) {
+        return undefined;
+    }
+
+    const normalizedDate = new Date(String(value));
+
+    if (Number.isNaN(normalizedDate.getTime())) {
+        return undefined;
+    }
+
+    return normalizedDate;
+};
+
 export class ConsultantCreateNameController extends Controller {
     protected readonly path: string = '/create-names';
     private readonly consultantCreateNameService = new ConsultantCreateNameService();
 
     protected doInitialize(): void {
         this.post('/:consultantId', AuthMiddleware.authenticate, this.createConsultantCreateName.bind(this));
-        this.put('/:id', AuthMiddleware.authenticate, this.updateConsultantCreateName.bind(this));
-        this.get('/:id', AuthMiddleware.authenticate, this.getConsultantCreateName.bind(this));
         this.get('/consultant/:consultantId', AuthMiddleware.authenticate, this.getAllConsultantCreateNames.bind(this));
+        this.put('/:id', AuthMiddleware.authenticate, this.updateConsultantCreateName.bind(this));
+        this.delete('/:id', AuthMiddleware.authenticate, this.deleteConsultantCreateName.bind(this));
+        this.get('/:id', AuthMiddleware.authenticate, this.getConsultantCreateName.bind(this));
     }
     private async createConsultantCreateName(req: express.Request, res: express.Response) {
         try {
@@ -21,7 +39,8 @@ export class ConsultantCreateNameController extends Controller {
             const createNameData = {
                 ...req.body,
                 id: Math.random().toString(36).substring(2, 9),
-                consultantId: req.params.consultantId,
+                consultantId: getParam(req.params.consultantId) || '',
+                birthDate: normalizeOptionalDate(req.body.birthDate),
             };
             const consultantCreateName = await this.consultantCreateNameService.create(createNameData);
             if (!consultantCreateName) {
@@ -30,8 +49,9 @@ export class ConsultantCreateNameController extends Controller {
             res.status(201).json(consultantCreateName);
         }
         catch (error) {
-            res.status(500).json({ message: error as string });
-            console.error(error);
+            res.status(500).json({
+                message: error instanceof Error ? error.message : 'Error al crear el nombre del consultor',
+            });
         }
     }
     private async updateConsultantCreateName(req: express.Request, res: express.Response) {
@@ -42,7 +62,10 @@ export class ConsultantCreateNameController extends Controller {
             if (!req.body || Object.keys(req.body).length === 0) {
                 return res.status(400).json({ message: 'No se proporcionaron datos para actualizar el nombre del consultor' });
             }
-            const consultantCreateName = await this.consultantCreateNameService.update(req.params.id, req.body);
+            const consultantCreateName = await this.consultantCreateNameService.update(getParam(req.params.id) || '', {
+                ...req.body,
+                birthDate: normalizeOptionalDate(req.body.birthDate),
+            });
             res.status(200).json(consultantCreateName);
         }
         catch (error) {
@@ -51,11 +74,23 @@ export class ConsultantCreateNameController extends Controller {
     }
     private async getConsultantCreateName(req: express.Request, res: express.Response) {
         try {
-            const consultantCreateName = await this.consultantCreateNameService.get(req.params.id);
+            const consultantCreateName = await this.consultantCreateNameService.get(getParam(req.params.id) || '');
             res.status(200).json(consultantCreateName);
         }
         catch (error) {
             res.status(500).json({ message: 'Error al obtener el nombre del consultor' });
+        }
+    }
+    private async deleteConsultantCreateName(req: express.Request, res: express.Response) {
+        try {
+            if (!req.params.id) {
+                return res.status(400).json({ message: 'ID del nombre del consultor es requerido' });
+            }
+            const consultantCreateName = await this.consultantCreateNameService.delete(getParam(req.params.id) || '');
+            res.status(200).json(consultantCreateName);
+        }
+        catch (error) {
+            res.status(500).json({ message: 'Error al eliminar el nombre del consultor' });
         }
     }
     private async getAllConsultantCreateNames(req: express.Request, res: express.Response) {
@@ -63,7 +98,7 @@ export class ConsultantCreateNameController extends Controller {
             if (!req.params.consultantId) {
                 return res.status(400).json({ message: 'ID del consultor es requerido' });
             }
-            const consultantCreateNames = await this.consultantCreateNameService.getAll(req.params.consultantId);
+            const consultantCreateNames = await this.consultantCreateNameService.getAll(getParam(req.params.consultantId) || '');
             res.status(200).json(consultantCreateNames);
         }
         catch (error) {

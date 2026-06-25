@@ -3,6 +3,10 @@ import { GuestEnergyService } from '../services/guestEnergyService';
 import { UserService } from '../services/userService';
 import express from 'express';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
+import { NotFoundError, ValidationError } from '../utils/customErrors';
+
+const getParam = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
 
 export class UserController extends Controller {
   protected readonly path: string = '/users';
@@ -11,7 +15,6 @@ export class UserController extends Controller {
 
   protected doInitialize(): void {
     this.get('/', AuthMiddleware.authenticate, this.getAllUsers.bind(this));
-    this.get('/:id', AuthMiddleware.authenticate, this.getUserById.bind(this));
     this.get('/:userId/guest-energy', AuthMiddleware.authenticate, this.getGuestEnergy.bind(this));
     this.post('/:userId/guest-energy', AuthMiddleware.authenticate, this.upsertGuestEnergy.bind(this));
     this.post('/:userId/guest-energy/partners', AuthMiddleware.authenticate, this.createGuestEnergyPartner.bind(this));
@@ -20,6 +23,7 @@ export class UserController extends Controller {
     this.post('/:userId/guest-energy/group-members', AuthMiddleware.authenticate, this.createGuestEnergyGroupMember.bind(this));
     this.put('/:userId/guest-energy/group-members/:memberId', AuthMiddleware.authenticate, this.updateGuestEnergyGroupMember.bind(this));
     this.delete('/:userId/guest-energy/group-members/:memberId', AuthMiddleware.authenticate, this.deleteGuestEnergyGroupMember.bind(this));
+    this.get('/:id', AuthMiddleware.authenticate, this.getUserById.bind(this));
     this.post('/', AuthMiddleware.authenticate, this.createUser.bind(this));
     this.put('/:id', AuthMiddleware.authenticate, this.updateUser.bind(this));
   }
@@ -109,6 +113,14 @@ export class UserController extends Controller {
 
       res.status(200).json(guestEnergy);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ message: error.message });
+      }
+
+      if (error instanceof NotFoundError) {
+        return res.status(404).json({ message: error.message });
+      }
+
       res.status(500).json({ message: 'Error al obtener el guest energy del usuario' });
     }
   }
@@ -177,7 +189,7 @@ export class UserController extends Controller {
       }
 
       const partner = await this.guestEnergyService.updatePartner(
-        req.params.partnerId,
+        getParam(req.params.partnerId) || '',
         req.body
       );
 
@@ -193,7 +205,7 @@ export class UserController extends Controller {
         return res.status(400).json({ message: 'ID del partner es requerido' });
       }
 
-      const partner = await this.guestEnergyService.deletePartner(req.params.partnerId);
+      const partner = await this.guestEnergyService.deletePartner(getParam(req.params.partnerId) || '');
       res.status(200).json(partner);
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar el partner guest del usuario' });
@@ -241,7 +253,7 @@ export class UserController extends Controller {
       }
 
       const member = await this.guestEnergyService.updateGroupMember(
-        req.params.memberId,
+        getParam(req.params.memberId) || '',
         req.body
       );
 
@@ -257,7 +269,7 @@ export class UserController extends Controller {
         return res.status(400).json({ message: 'ID del miembro es requerido' });
       }
 
-      const member = await this.guestEnergyService.deleteGroupMember(req.params.memberId);
+      const member = await this.guestEnergyService.deleteGroupMember(getParam(req.params.memberId) || '');
       res.status(200).json(member);
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar el miembro guest del usuario' });

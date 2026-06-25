@@ -1,12 +1,11 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { userPublicSelect } from '../models/userModel';
 import {
   ValidationError,
   NotFoundError,
   DatabaseError,
 } from '../utils/customErrors';
-
-const prisma = new PrismaClient();
 
 export class UserRepository {
   async create(data: Prisma.UserCreateInput) {

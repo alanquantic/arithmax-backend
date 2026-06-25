@@ -1,4 +1,5 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { ConsultantModel } from '../models/consultantModel';
 import {
   ValidationError,
@@ -6,10 +7,8 @@ import {
   DatabaseError,
 } from '../utils/customErrors';
 
-const prisma = new PrismaClient();
-
 export class ConsultantRepository {
-  async create(data: Prisma.ConsultantCreateInput) {
+  async create(data: Prisma.ConsultantUncheckedCreateInput) {
     if (!data) {
       throw new ValidationError('Consultant data is required');
     }
@@ -92,8 +91,16 @@ export class ConsultantRepository {
           notes: true,
           partners: true,
           createNames: true,
-          partnerData: true,
-          groupData: true,
+          partnerData: {
+            include: {
+              partners: true,
+            },
+          },
+          groupData: {
+            include: {
+              members: true,
+            },
+          },
         },
         orderBy: {
           names: 'asc',
@@ -120,8 +127,16 @@ export class ConsultantRepository {
           notes: true,
           partners: true,
           createNames: true,
-          partnerData: true,
-          groupData: true,
+          partnerData: {
+            include: {
+              partners: true,
+            },
+          },
+          groupData: {
+            include: {
+              members: true,
+            },
+          },
         },
       });
 
