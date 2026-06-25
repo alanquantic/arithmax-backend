@@ -4,6 +4,7 @@ import { UserService } from '../services/userService';
 import express from 'express';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
 import { NotFoundError, ValidationError } from '../utils/customErrors';
+import { parseDateOnlyInput } from '../utils/date';
 
 const getParam = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
@@ -55,13 +56,9 @@ export class UserController extends Controller {
           });
       }
 
-      // Preparar datos de creación con conversión de fecha
       const userData = {
         ...req.body,
-        // Convertir fecha a formato ISO si se proporciona
-        birthDate: req.body.birthDate
-          ? new Date(req.body.birthDate).toISOString()
-          : undefined,
+        birthDate: parseDateOnlyInput(req.body.birthDate),
       };
 
       const user = await this.userService.create(userData);
@@ -82,13 +79,9 @@ export class UserController extends Controller {
           .json({ message: 'No se proporcionaron datos para actualizar' });
       }
 
-      // Preparar datos de actualización con conversión de fecha
       const updateData = {
         ...req.body,
-        // Convertir fecha a formato ISO si se proporciona
-        birthDate: req.body.birthDate
-          ? new Date(req.body.birthDate).toISOString()
-          : undefined,
+        birthDate: parseDateOnlyInput(req.body.birthDate),
       };
 
       const user = await this.userService.update(

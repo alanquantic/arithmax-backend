@@ -3,6 +3,7 @@ import { ConsultantNoteService } from '../services/consultantNoteService';
 import express from 'express';
 import { Controller } from './controller';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
+import { parseDateOnlyInput } from '../utils/date';
 
 const getParam = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
@@ -71,8 +72,8 @@ export class ConsultantController extends Controller {
         id:
           req.body.id ||
           `consultant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        // Convertir fecha a formato ISO si se proporciona
-        date: req.body.date ? new Date(req.body.date).toISOString() : undefined,
+        scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+        date: parseDateOnlyInput(req.body.date),
       };
       const consultant = await this.consultantService.create(consultantData);
       res.status(201).json(consultant);
@@ -80,25 +81,28 @@ export class ConsultantController extends Controller {
       res.status(500).json({ message: 'Error al crear el consultor' });
     }
   }
-  private async updateConsultant(req: express.Request, res: express.Response) {
+  private async updateConsultant(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    if (!req.params.id) {
+      return res
+        .status(400)
+        .json({ message: 'ID del consultor es requerido' });
+    }
+
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res
+        .status(400)
+        .json({ message: 'No se proporcionaron datos para actualizar' });
+    }
+
     try {
-      if (!req.params.id) {
-        return res
-          .status(400)
-          .json({ message: 'ID del consultor es requerido' });
-      }
-
-      if (!req.body || Object.keys(req.body).length === 0) {
-        return res
-          .status(400)
-          .json({ message: 'No se proporcionaron datos para actualizar' });
-      }
-
-      // Preparar datos de actualización con conversión de fecha
       const updateData = {
         ...req.body,
-        // Convertir fecha a formato ISO si se proporciona
-        date: req.body.date ? new Date(req.body.date).toISOString() : undefined,
+        scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const consultant = await this.consultantService.update(
@@ -107,7 +111,7 @@ export class ConsultantController extends Controller {
       );
       res.status(200).json(consultant);
     } catch (error) {
-      res.status(500).json({ message: 'Error al actualizar el consultor' });
+      next(error);
     }
   }
   private async deleteConsultant(req: express.Request, res: express.Response) {

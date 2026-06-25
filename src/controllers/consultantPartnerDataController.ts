@@ -1,24 +1,11 @@
 import express from 'express';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
 import { ConsultantPartnerDataService } from '../services/consultantPartnerDataService';
+import { parseDateOnlyInput } from '../utils/date';
 import { Controller } from './controller';
 
 const getParam = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
-
-const normalizeOptionalDate = (value: unknown) => {
-  if (!value) {
-    return undefined;
-  }
-
-  const normalizedDate = new Date(String(value));
-
-  if (Number.isNaN(normalizedDate.getTime())) {
-    return undefined;
-  }
-
-  return normalizedDate;
-};
 
 export class ConsultantPartnerDataController extends Controller {
   protected readonly path: string = '/partner-data';
@@ -45,7 +32,7 @@ export class ConsultantPartnerDataController extends Controller {
         ...req.body,
         id: Math.random().toString(36).substring(2, 9),
         consultantId: getParam(req.params.consultantId) || '',
-        date: normalizeOptionalDate(req.body.date),
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const consultantPartnerData = await this.consultantPartnerDataService.create(partnerDataData);
@@ -71,7 +58,8 @@ export class ConsultantPartnerDataController extends Controller {
       const partnerData = {
         ...req.body,
         id: Math.random().toString(36).substring(2, 9),
-        date: normalizeOptionalDate(req.body.date),
+        scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const partner = await this.consultantPartnerDataService.createPartner(
@@ -102,7 +90,8 @@ export class ConsultantPartnerDataController extends Controller {
         getParam(req.params.partnerId) || '',
         {
           ...req.body,
-          date: normalizeOptionalDate(req.body.date),
+          scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+          date: parseDateOnlyInput(req.body.date),
         }
       );
       res.status(200).json(partner);
@@ -136,7 +125,7 @@ export class ConsultantPartnerDataController extends Controller {
         getParam(req.params.id) || '',
         {
           ...req.body,
-          date: normalizeOptionalDate(req.body.date),
+          date: parseDateOnlyInput(req.body.date),
         }
       );
 

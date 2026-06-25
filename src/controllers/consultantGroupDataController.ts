@@ -1,24 +1,11 @@
 import express from 'express';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
 import { ConsultantGroupDataService } from '../services/consultantGroupDataService';
+import { parseDateOnlyInput } from '../utils/date';
 import { Controller } from './controller';
 
 const getParam = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
-
-const normalizeOptionalDate = (value: unknown) => {
-  if (!value) {
-    return undefined;
-  }
-
-  const normalizedDate = new Date(String(value));
-
-  if (Number.isNaN(normalizedDate.getTime())) {
-    return undefined;
-  }
-
-  return normalizedDate;
-};
 
 export class ConsultantGroupDataController extends Controller {
   protected readonly path: string = '/group-data';
@@ -45,7 +32,7 @@ export class ConsultantGroupDataController extends Controller {
         ...req.body,
         id: Math.random().toString(36).substring(2, 9),
         consultantId: getParam(req.params.consultantId) || '',
-        date: normalizeOptionalDate(req.body.date),
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const consultantGroupData = await this.consultantGroupDataService.create(groupDataData);
@@ -71,7 +58,8 @@ export class ConsultantGroupDataController extends Controller {
       const memberData = {
         ...req.body,
         id: Math.random().toString(36).substring(2, 9),
-        date: normalizeOptionalDate(req.body.date),
+        scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const member = await this.consultantGroupDataService.createMember(
@@ -102,7 +90,8 @@ export class ConsultantGroupDataController extends Controller {
         getParam(req.params.memberId) || '',
         {
           ...req.body,
-          date: normalizeOptionalDate(req.body.date),
+          scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+          date: parseDateOnlyInput(req.body.date),
         }
       );
       res.status(200).json(member);
@@ -136,7 +125,7 @@ export class ConsultantGroupDataController extends Controller {
         getParam(req.params.id) || '',
         {
           ...req.body,
-          date: normalizeOptionalDate(req.body.date),
+          date: parseDateOnlyInput(req.body.date),
         }
       );
 

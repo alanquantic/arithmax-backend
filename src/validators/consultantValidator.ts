@@ -10,9 +10,6 @@ export class ConsultantValidator {
     if(!data.lastName) {
       throw new ValidationError('Last name is required');
     }
-    if(!data.scdLastName) {
-      throw new ValidationError('Second last name is required');
-    }
     if(!data.date) {
       throw new ValidationError('Date is required');
     }
