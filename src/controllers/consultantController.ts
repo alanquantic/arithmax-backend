@@ -3,6 +3,10 @@ import { ConsultantNoteService } from '../services/consultantNoteService';
 import express from 'express';
 import { Controller } from './controller';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
+import { parseDateOnlyInput } from '../utils/date';
+
+const getParam = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
 
 export class ConsultantController extends Controller {
   protected readonly path: string = '/consultants';
@@ -11,10 +15,10 @@ export class ConsultantController extends Controller {
 
   protected doInitialize(): void {
     this.get('/', AuthMiddleware.authenticate, this.getAllConsultants.bind(this));
-    this.get('/:id', AuthMiddleware.authenticate, this.getConsultantById.bind(this));
     this.get('/user/:userId', AuthMiddleware.authenticate, this.getConsultantsByUserId.bind(this));
     this.get('/:consultantId/notes', AuthMiddleware.authenticate, this.getConsultantNotes.bind(this));
     this.get('/:consultantId/notes/:noteId', AuthMiddleware.authenticate, this.getConsultantNoteById.bind(this));
+    this.get('/:id', AuthMiddleware.authenticate, this.getConsultantById.bind(this));
     this.post('/:consultantId/notes', AuthMiddleware.authenticate, this.upsertConsultantNote.bind(this));
     this.put('/:consultantId/notes/:noteId', AuthMiddleware.authenticate, this.updateConsultantNote.bind(this));
     this.delete('/:consultantId/notes/:noteId', AuthMiddleware.authenticate, this.deleteConsultantNote.bind(this));
@@ -33,7 +37,7 @@ export class ConsultantController extends Controller {
   }
   private async getConsultantById(req: express.Request, res: express.Response) {
     try {
-      const consultant = await this.consultantService.findById(req.params.id);
+      const consultant = await this.consultantService.findById(getParam(req.params.id) || '');
       res.status(200).json(consultant);
     } catch (error) {
       res.status(500).json({ message: 'Error al obtener el consultor' });
@@ -45,7 +49,7 @@ export class ConsultantController extends Controller {
   ) {
     try {
       const consultants = await this.consultantService.findByUserId(
-        parseInt(req.params.userId)
+        parseInt(getParam(req.params.userId) || '0')
       );
       res.status(200).json(consultants);
     } catch (error) {
@@ -68,8 +72,8 @@ export class ConsultantController extends Controller {
         id:
           req.body.id ||
           `consultant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        // Convertir fecha a formato ISO si se proporciona
-        date: req.body.date ? new Date(req.body.date).toISOString() : undefined,
+        scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+        date: parseDateOnlyInput(req.body.date),
       };
       const consultant = await this.consultantService.create(consultantData);
       res.status(201).json(consultant);
@@ -77,39 +81,42 @@ export class ConsultantController extends Controller {
       res.status(500).json({ message: 'Error al crear el consultor' });
     }
   }
-  private async updateConsultant(req: express.Request, res: express.Response) {
+  private async updateConsultant(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    if (!req.params.id) {
+      return res
+        .status(400)
+        .json({ message: 'ID del consultor es requerido' });
+    }
+
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res
+        .status(400)
+        .json({ message: 'No se proporcionaron datos para actualizar' });
+    }
+
     try {
-      if (!req.params.id) {
-        return res
-          .status(400)
-          .json({ message: 'ID del consultor es requerido' });
-      }
-
-      if (!req.body || Object.keys(req.body).length === 0) {
-        return res
-          .status(400)
-          .json({ message: 'No se proporcionaron datos para actualizar' });
-      }
-
-      // Preparar datos de actualización con conversión de fecha
       const updateData = {
         ...req.body,
-        // Convertir fecha a formato ISO si se proporciona
-        date: req.body.date ? new Date(req.body.date).toISOString() : undefined,
+        scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const consultant = await this.consultantService.update(
-        req.params.id,
+        getParam(req.params.id) || '',
         updateData
       );
       res.status(200).json(consultant);
     } catch (error) {
-      res.status(500).json({ message: 'Error al actualizar el consultor' });
+      next(error);
     }
   }
   private async deleteConsultant(req: express.Request, res: express.Response) {
     try {
-      const consultant = await this.consultantService.delete(req.params.id);
+      const consultant = await this.consultantService.delete(getParam(req.params.id) || '');
       res.status(200).json(consultant);
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar el consultor' });
@@ -125,7 +132,7 @@ export class ConsultantController extends Controller {
       }
 
       const notes = await this.consultantNoteService.findByConsultantId(
-        req.params.consultantId
+        getParam(req.params.consultantId) || ''
       );
       res.status(200).json(notes);
     } catch (error) {
@@ -162,7 +169,7 @@ export class ConsultantController extends Controller {
 
       const noteData = {
         ...req.body,
-        consultantId: req.params.consultantId,
+        consultantId: getParam(req.params.consultantId) || '',
       };
 
       const note = await this.consultantNoteService.upsert(noteData);

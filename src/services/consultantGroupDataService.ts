@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import {
   ConsultantGroupDataMemberModel,
   ConsultantGroupDataModel,
+  ConsultantGroupDataModelWithRelations,
 } from '../models/consultantGroupDataModel';
 import { ConsultantGroupDataRepository } from '../repositories/consultantGroupDataRepository';
 import { ConsultantGroupDataValidator } from '../validators/consultantGroupDataValidator';
@@ -13,8 +14,8 @@ export class ConsultantGroupDataService {
     this.consultantGroupDataRepository = new ConsultantGroupDataRepository();
   }
 
-  async create(data: Prisma.ConsultantGroupDataCreateInput): Promise<ConsultantGroupDataModel> {
-    ConsultantGroupDataValidator.validateCreateData(data);
+  async create(data: Prisma.ConsultantGroupDataUncheckedCreateInput): Promise<ConsultantGroupDataModel> {
+    ConsultantGroupDataValidator.validateCreateData(data as unknown as Prisma.ConsultantGroupDataCreateInput);
     return this.consultantGroupDataRepository.create(data);
   }
 
@@ -24,6 +25,18 @@ export class ConsultantGroupDataService {
   ): Promise<ConsultantGroupDataMemberModel> {
     ConsultantGroupDataValidator.validateMemberCreateData(data);
     return this.consultantGroupDataRepository.createMember(id, data);
+  }
+  async updateMember(
+    id: string,
+    data: Prisma.ConsultantGroupDataMemberUpdateInput
+  ): Promise<ConsultantGroupDataMemberModel> {
+    ConsultantGroupDataValidator.validateMemberCreateData(
+      data as Prisma.ConsultantGroupDataMemberCreateInput
+    );
+    return this.consultantGroupDataRepository.updateMember(id, data);
+  }
+  async deleteMember(id: string): Promise<ConsultantGroupDataMemberModel> {
+    return this.consultantGroupDataRepository.deleteMember(id);
   }
 
   async update(
@@ -38,11 +51,11 @@ export class ConsultantGroupDataService {
     return this.consultantGroupDataRepository.delete(id);
   }
 
-  async get(id: string): Promise<ConsultantGroupDataModel> {
+  async get(id: string): Promise<ConsultantGroupDataModelWithRelations> {
     return this.consultantGroupDataRepository.get(id);
   }
 
-  async getAll(consultantId: string): Promise<ConsultantGroupDataModel[]> {
+  async getAll(consultantId: string): Promise<ConsultantGroupDataModelWithRelations[]> {
     return this.consultantGroupDataRepository.getAll(consultantId);
   }
 }

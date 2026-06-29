@@ -1,10 +1,12 @@
 /* eslint-disable no-console */
-import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import { prisma } from './lib/prisma';
 import { initializeRoutes } from './routes/routes';
+
 dotenv.config();
+
 const app = express();
 
 const port = process.env.PORT ?? 3000;
@@ -19,17 +21,20 @@ app.get('/', (req, res) =>
   })
 );
 
-app.listen(port, async () => {
-  initializeRoutes(app);
+initializeRoutes(app);
 
-  const prisma = new PrismaClient();
+async function start() {
+  try {
+    await prisma.$connect();
+    console.log('Conexión a la base de datos establecida');
 
-  await prisma
-    .$connect()
-    .then(() => {
-      console.log('Conexión a la base de datos establecida');
-    })
-    .catch((error: Error) => {
-      console.error('Error al conectar a la base de datos:', error);
+    app.listen(port, () => {
+      console.log(`Servidor escuchando en http://localhost:${port}`);
     });
-});
+  } catch (error) {
+    console.error('Error al iniciar la aplicación:', error);
+    process.exit(1);
+  }
+}
+
+start();

@@ -1,10 +1,9 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { GuestModel } from '../models/guestModel';
 import { ValidationError, DatabaseError, NotFoundError } from '../utils/customErrors';
 import { GuestPartnerModel } from '../models/guestPartnerModel';
 import { GuestGroupMemberModel } from '../models/guestGroupModel';
-
-const prisma = new PrismaClient();
 
 export class GuestRepository {
     async createPartnerGuest(data: Prisma.GuestPartnerCreateInput): Promise<GuestPartnerModel> {

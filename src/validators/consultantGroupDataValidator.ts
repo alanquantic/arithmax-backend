@@ -23,10 +23,6 @@ export class ConsultantGroupDataValidator {
       throw new ValidationError('Member last name is required');
     }
 
-    if (!data.scdLastName) {
-      throw new ValidationError('Member second last name is required');
-    }
-
     if (!data.date) {
       throw new ValidationError('Member date is required');
     }

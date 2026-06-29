@@ -1,8 +1,14 @@
-import { Prisma } from '@prisma/client';
-import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/userRepository';
 import { AuthValidator } from '../validators/authValidator';
 import { NotFoundError, ValidationError } from '../utils/customErrors';
+
+const jwt: {
+  sign: (
+    payload: string | Buffer | object,
+    secret: string,
+    options?: { expiresIn?: string | number }
+  ) => string;
+} = require('jsonwebtoken');
 
 type LoginInput = {
   username: string;
@@ -72,7 +78,7 @@ export class AuthService {
       throw new ValidationError('WORDPRESS_API_URL is not configured');
     }
 
-    const response = await fetch(`${wordpressBaseUrl}/wp-json/app/v3/auth/login`, {
+    const response = await fetch(this.buildWordPressLoginUrl(wordpressBaseUrl), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -91,6 +97,20 @@ export class AuthService {
     }
 
     return responseData;
+  }
+
+  private buildWordPressLoginUrl(wordpressBaseUrl: string): string {
+    const normalizedBaseUrl = wordpressBaseUrl.replace(/\/+$/, '');
+
+    if (normalizedBaseUrl.endsWith('/wp-json/app/v3')) {
+      return `${normalizedBaseUrl}/auth/login`;
+    }
+
+    if (normalizedBaseUrl.endsWith('/wp-json')) {
+      return `${normalizedBaseUrl}/app/v3/auth/login`;
+    }
+
+    return `${normalizedBaseUrl}/wp-json/app/v3/auth/login`;
   }
 
   private normalizeWordPressLicense(data: WordPressLoginResponse): {

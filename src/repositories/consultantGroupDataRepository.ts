@@ -1,14 +1,14 @@
 import {
   ConsultantGroupDataMemberModel,
   ConsultantGroupDataModel,
+  ConsultantGroupDataModelWithRelations,
 } from '../models/consultantGroupDataModel';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { DatabaseError, NotFoundError, ValidationError } from '../utils/customErrors';
-import { Prisma, PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 export class ConsultantGroupDataRepository {
-  async create(data: Prisma.ConsultantGroupDataCreateInput): Promise<ConsultantGroupDataModel> {
+  async create(data: Prisma.ConsultantGroupDataUncheckedCreateInput): Promise<ConsultantGroupDataModel> {
     if (!data) {
       throw new ValidationError('Group data is required');
     }
@@ -45,6 +45,46 @@ export class ConsultantGroupDataRepository {
       });
     } catch (error) {
       throw new DatabaseError('Failed to create GroupData member', error as Error);
+    }
+  }
+  async updateMember(
+    id: string,
+    data: Prisma.ConsultantGroupDataMemberUpdateInput
+  ): Promise<ConsultantGroupDataMemberModel> {
+    if (!id) {
+      throw new ValidationError('Group member ID is required');
+    }
+    try {
+      return await prisma.consultantGroupDataMember.update({
+        where: { id },
+        data,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundError('Group member not found');
+      }
+      throw new DatabaseError('Failed to update GroupData member', error as Error);
+    }
+  }
+  async deleteMember(id: string): Promise<ConsultantGroupDataMemberModel> {
+    if (!id) {
+      throw new ValidationError('Group member ID is required');
+    }
+    try {
+      return await prisma.consultantGroupDataMember.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundError('Group member not found');
+      }
+      throw new DatabaseError('Failed to delete GroupData member', error as Error);
     }
   }
 
@@ -98,7 +138,7 @@ export class ConsultantGroupDataRepository {
     }
   }
 
-  async get(id: string): Promise<ConsultantGroupDataModel> {
+  async get(id: string): Promise<ConsultantGroupDataModelWithRelations> {
     if (!id) {
       throw new ValidationError('GroupData ID is required');
     }
@@ -106,6 +146,9 @@ export class ConsultantGroupDataRepository {
     try {
       const groupData = await prisma.consultantGroupData.findUnique({
         where: { id },
+        include: {
+          members: true,
+        },
       });
 
       if (!groupData) {
@@ -122,7 +165,7 @@ export class ConsultantGroupDataRepository {
     }
   }
 
-  async getAll(consultantId: string): Promise<ConsultantGroupDataModel[]> {
+  async getAll(consultantId: string): Promise<ConsultantGroupDataModelWithRelations[]> {
     if (!consultantId) {
       throw new ValidationError('Consultant ID is required');
     }
@@ -130,6 +173,9 @@ export class ConsultantGroupDataRepository {
     try {
       return await prisma.consultantGroupData.findMany({
         where: { consultantId },
+        include: {
+          members: true,
+        },
       });
     } catch (error) {
       throw new DatabaseError('Failed to get all GroupData', error as Error);

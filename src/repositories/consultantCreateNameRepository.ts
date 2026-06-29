@@ -1,11 +1,10 @@
+import { Prisma } from "@prisma/client";
+import { prisma } from "../lib/prisma";
 import { ConsultantCreateNameModel } from "../models/consultantCreateNameModel";
 import { DatabaseError, NotFoundError, ValidationError } from "../utils/customErrors";
-import { Prisma, PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
 
 export class ConsultantCreateNameRepository {
-    async create(data: Prisma.ConsultantCreateNameCreateInput): Promise<ConsultantCreateNameModel> {
+    async create(data: Prisma.ConsultantCreateNameUncheckedCreateInput): Promise<ConsultantCreateNameModel> {
         if (!data) {
             throw new ValidationError('Consultant create name data is required');
         }
@@ -60,6 +59,25 @@ export class ConsultantCreateNameRepository {
         }
         catch (error) {
             throw new DatabaseError('Failed to get all consultant create names', error as Error);
+        }
+    }
+    async delete(id: string): Promise<ConsultantCreateNameModel> {
+        if (!id) {
+            throw new ValidationError('Consultant create name ID is required');
+        }
+        try {
+            return await prisma.consultantCreateName.delete({
+                where: { id },
+            });
+        }
+        catch (error) {
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError &&
+                error.code === 'P2025'
+            ) {
+                throw new NotFoundError('Consultant create name not found');
+            }
+            throw new DatabaseError('Failed to delete consultant create name', error as Error);
         }
     }
 }

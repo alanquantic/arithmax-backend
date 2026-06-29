@@ -8,8 +8,8 @@ export class ConsultantCreateNameService {
     constructor() {
         this.consultantCreateNameRepository = new ConsultantCreateNameRepository();
     }
-    async create(data: Prisma.ConsultantCreateNameCreateInput): Promise<ConsultantCreateNameModel> {
-        CreateNameValidator.validateCreateData(data);
+    async create(data: Prisma.ConsultantCreateNameUncheckedCreateInput): Promise<ConsultantCreateNameModel> {
+        CreateNameValidator.validateCreateData(data as unknown as Prisma.ConsultantCreateNameCreateInput);
         return this.consultantCreateNameRepository.create(data);
     }
     async update(id: string, data: Prisma.ConsultantCreateNameUpdateInput): Promise<ConsultantCreateNameModel> {
@@ -21,5 +21,8 @@ export class ConsultantCreateNameService {
     }
     async getAll(consultantId: string): Promise<ConsultantCreateNameModel[]> {
         return this.consultantCreateNameRepository.getAll(consultantId);
+    }
+    async delete(id: string): Promise<ConsultantCreateNameModel> {
+        return this.consultantCreateNameRepository.delete(id);
     }
 }

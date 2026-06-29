@@ -23,10 +23,6 @@ export class ConsultantPartnerDataValidator {
       throw new ValidationError('Partner last name is required');
     }
 
-    if (!data.scdLastName) {
-      throw new ValidationError('Partner second last name is required');
-    }
-
     if (!data.date) {
       throw new ValidationError('Partner date is required');
     }

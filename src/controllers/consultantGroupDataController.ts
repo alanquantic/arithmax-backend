@@ -1,7 +1,11 @@
 import express from 'express';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
 import { ConsultantGroupDataService } from '../services/consultantGroupDataService';
+import { parseDateOnlyInput } from '../utils/date';
 import { Controller } from './controller';
+
+const getParam = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
 
 export class ConsultantGroupDataController extends Controller {
   protected readonly path: string = '/group-data';
@@ -9,11 +13,13 @@ export class ConsultantGroupDataController extends Controller {
 
   protected doInitialize(): void {
     this.post('/:consultantId', AuthMiddleware.authenticate, this.createConsultantGroupData.bind(this));
+    this.get('/consultant/:consultantId', AuthMiddleware.authenticate, this.getAllConsultantGroupData.bind(this));
     this.post('/:groupDataId/member', AuthMiddleware.authenticate, this.createConsultantGroupDataMember.bind(this));
+    this.put('/member/:memberId', AuthMiddleware.authenticate, this.updateConsultantGroupDataMember.bind(this));
+    this.delete('/member/:memberId', AuthMiddleware.authenticate, this.deleteConsultantGroupDataMember.bind(this));
     this.put('/:id', AuthMiddleware.authenticate, this.updateConsultantGroupData.bind(this));
     this.delete('/:id', AuthMiddleware.authenticate, this.deleteConsultantGroupData.bind(this));
     this.get('/:id', AuthMiddleware.authenticate, this.getConsultantGroupData.bind(this));
-    this.get('/consultant/:consultantId', AuthMiddleware.authenticate, this.getAllConsultantGroupData.bind(this));
   }
 
   private async createConsultantGroupData(req: express.Request, res: express.Response) {
@@ -25,7 +31,8 @@ export class ConsultantGroupDataController extends Controller {
       const groupDataData = {
         ...req.body,
         id: Math.random().toString(36).substring(2, 9),
-        consultantId: req.params.consultantId,
+        consultantId: getParam(req.params.consultantId) || '',
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const consultantGroupData = await this.consultantGroupDataService.create(groupDataData);
@@ -36,8 +43,9 @@ export class ConsultantGroupDataController extends Controller {
 
       res.status(201).json(consultantGroupData);
     } catch (error) {
-      res.status(500).json({ message: error as string });
-      console.error(error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : 'Error al crear el group data del consultor',
+      });
     }
   }
 
@@ -50,10 +58,12 @@ export class ConsultantGroupDataController extends Controller {
       const memberData = {
         ...req.body,
         id: Math.random().toString(36).substring(2, 9),
+        scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+        date: parseDateOnlyInput(req.body.date),
       };
 
       const member = await this.consultantGroupDataService.createMember(
-        req.params.groupDataId,
+        getParam(req.params.groupDataId) || '',
         memberData
       );
 
@@ -63,8 +73,41 @@ export class ConsultantGroupDataController extends Controller {
 
       res.status(201).json(member);
     } catch (error) {
-      res.status(500).json({ message: error as string });
-      console.error(error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : 'Error al crear el miembro del group data',
+      });
+    }
+  }
+  private async updateConsultantGroupDataMember(req: express.Request, res: express.Response) {
+    try {
+      if (!req.params.memberId) {
+        return res.status(400).json({ message: 'ID del miembro es requerido' });
+      }
+      if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).json({ message: 'No se proporcionaron datos para actualizar el miembro' });
+      }
+      const member = await this.consultantGroupDataService.updateMember(
+        getParam(req.params.memberId) || '',
+        {
+          ...req.body,
+          scdLastName: req.body.scdLastName ? String(req.body.scdLastName).trim() : null,
+          date: parseDateOnlyInput(req.body.date),
+        }
+      );
+      res.status(200).json(member);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al actualizar el miembro del group data' });
+    }
+  }
+  private async deleteConsultantGroupDataMember(req: express.Request, res: express.Response) {
+    try {
+      if (!req.params.memberId) {
+        return res.status(400).json({ message: 'ID del miembro es requerido' });
+      }
+      const member = await this.consultantGroupDataService.deleteMember(getParam(req.params.memberId) || '');
+      res.status(200).json(member);
+    } catch (error) {
+      res.status(500).json({ message: 'Error al eliminar el miembro del group data' });
     }
   }
 
@@ -79,8 +122,11 @@ export class ConsultantGroupDataController extends Controller {
       }
 
       const consultantGroupData = await this.consultantGroupDataService.update(
-        req.params.id,
-        req.body
+        getParam(req.params.id) || '',
+        {
+          ...req.body,
+          date: parseDateOnlyInput(req.body.date),
+        }
       );
 
       res.status(200).json(consultantGroupData);
@@ -95,7 +141,7 @@ export class ConsultantGroupDataController extends Controller {
         return res.status(400).json({ message: 'ID del group data es requerido' });
       }
 
-      const consultantGroupData = await this.consultantGroupDataService.delete(req.params.id);
+      const consultantGroupData = await this.consultantGroupDataService.delete(getParam(req.params.id) || '');
       res.status(200).json(consultantGroupData);
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar el group data del consultor' });
@@ -104,7 +150,7 @@ export class ConsultantGroupDataController extends Controller {
 
   private async getConsultantGroupData(req: express.Request, res: express.Response) {
     try {
-      const consultantGroupData = await this.consultantGroupDataService.get(req.params.id);
+      const consultantGroupData = await this.consultantGroupDataService.get(getParam(req.params.id) || '');
       res.status(200).json(consultantGroupData);
     } catch (error) {
       res.status(500).json({ message: 'Error al obtener el group data del consultor' });
@@ -118,7 +164,7 @@ export class ConsultantGroupDataController extends Controller {
       }
 
       const consultantGroupData = await this.consultantGroupDataService.getAll(
-        req.params.consultantId
+        getParam(req.params.consultantId) || ''
       );
 
       res.status(200).json(consultantGroupData);
