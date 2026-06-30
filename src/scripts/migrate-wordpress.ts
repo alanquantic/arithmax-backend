@@ -35,6 +35,9 @@ const report = {
   members: 0,
   createNames: 0,
   notes: 0,
+  guests: 0,
+  guestPartners: 0,
+  guestGroupMembers: 0,
   badDates: [] as string[],
   warnings: [] as string[],
 };
@@ -48,6 +51,8 @@ type WpUser = {
   birthDate?: string;
   phone?: string;
   consultants?: unknown;
+  guestEnergyPartner?: unknown;
+  guestEnergyGroup?: unknown;
 };
 
 function str(v: unknown): string | null {
@@ -270,6 +275,95 @@ async function migrateConsultant(c: any, userId: number) {
   await migrateNotes(consultantId, c.notes);
 }
 
+// El meta guestEnergyPartner/guestEnergyGroup puede venir como objeto o como
+// JSON string (segun como WP serialice el user_meta). Lo normalizamos a objeto.
+function asObject(raw: unknown): any {
+  if (raw === null || raw === undefined || raw === '') return null;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  return typeof raw === 'object' ? raw : null;
+}
+
+// guestEnergyPartner -> Guest.partnerName/partnerMeetYear + GuestPartner[]
+// guestEnergyGroup   -> Guest.groupName/groupYear      + GuestGroupMember[]
+// El Guest es 1-a-1 con el usuario (upsert por userId); su id autoincrement
+// se usa como FK de partners/miembros.
+async function migrateGuests(userId: number, wpUser: WpUser) {
+  const partnerEnergy = asObject(wpUser.guestEnergyPartner);
+  const groupEnergy = asObject(wpUser.guestEnergyGroup);
+  if (!partnerEnergy && !groupEnergy) return;
+
+  report.guests += 1;
+  const guestFields = {
+    partnerName: str(partnerEnergy?.name),
+    partnerMeetYear: toInt(partnerEnergy?.guestMeetYear),
+    groupName: str(groupEnergy?.name),
+    groupYear: toInt(groupEnergy?.guestYearGroup),
+  };
+
+  let guestId = 0;
+  if (!DRY_RUN) {
+    const guest = await prisma.guest.upsert({
+      where: { userId },
+      update: guestFields,
+      create: { userId, ...guestFields },
+    });
+    guestId = guest.id;
+  }
+
+  const partners = Array.isArray(partnerEnergy?.guestPartner) ? partnerEnergy.guestPartner : [];
+  for (const p of partners) {
+    const partnerId = str(p?.id);
+    if (!partnerId) {
+      report.warnings.push(`guestPartner sin id (usuario ${userId}), omitido`);
+      continue;
+    }
+    report.guestPartners += 1;
+    const partnerFields = {
+      names: str(p.names),
+      lastName: str(p.lastName),
+      scdLastName: str(p.scdLastName),
+      date: sanitizeDate(p.date),
+    };
+    if (!DRY_RUN) {
+      await prisma.guestPartner.upsert({
+        where: { id: partnerId },
+        update: { ...partnerFields, guestId },
+        create: { id: partnerId, guestId, ...partnerFields },
+      });
+    }
+  }
+
+  const members = Array.isArray(groupEnergy?.guestGroup) ? groupEnergy.guestGroup : [];
+  for (const m of members) {
+    const memberId = str(m?.id);
+    if (!memberId) {
+      report.warnings.push(`guestGroupMember sin id (usuario ${userId}), omitido`);
+      continue;
+    }
+    report.guestGroupMembers += 1;
+    const memberFields = {
+      name: str(m.name),
+      lastName: str(m.lastName),
+      scdLastName: str(m.scdLastName),
+      date: sanitizeDate(m.date),
+      dateInit: toInt(m.dateInit),
+    };
+    if (!DRY_RUN) {
+      await prisma.guestGroupMember.upsert({
+        where: { id: memberId },
+        update: { ...memberFields, guestId },
+        create: { id: memberId, guestId, ...memberFields },
+      });
+    }
+  }
+}
+
 async function migrateUser(wpUser: WpUser) {
   if (!wpUser?.email) {
     report.warnings.push(`usuario #${wpUser?.ID} sin email, omitido`);
@@ -306,6 +400,11 @@ async function migrateUser(wpUser: WpUser) {
     } catch (err) {
       report.warnings.push(`consultante ${c?.id} (usuario ${wpUser.email}): ${(err as Error).message}`);
     }
+  }
+  try {
+    await migrateGuests(userId, wpUser);
+  } catch (err) {
+    report.warnings.push(`guests (usuario ${wpUser.email}): ${(err as Error).message}`);
   }
 }
 
