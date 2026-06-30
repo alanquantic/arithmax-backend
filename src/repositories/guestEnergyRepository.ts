@@ -5,6 +5,7 @@ import { GuestGroupMemberModel } from '../models/guestGroupModel';
 import { GuestModel } from '../models/guestModel';
 import { GuestPartnerModel } from '../models/guestPartnerModel';
 import { DatabaseError, NotFoundError, ValidationError } from '../utils/customErrors';
+import { randomUUID } from 'crypto';
 
 export class GuestEnergyRepository {
   async getByUserId(userId: number): Promise<GuestEnergyModel> {
@@ -217,6 +218,86 @@ export class GuestEnergyRepository {
         'Failed to delete guest group member',
         error as Error
       );
+    }
+  }
+
+  async replacePartners(
+    guestId: number,
+    partners: Array<{
+      names?: string | null;
+      lastName?: string | null;
+      scdLastName?: string | null;
+      date?: Date;
+    }>
+  ): Promise<GuestPartnerModel[]> {
+    if (!guestId || Number.isNaN(Number(guestId))) {
+      throw new ValidationError('Valid guest ID is required');
+    }
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        await tx.guestPartner.deleteMany({ where: { guestId } });
+
+        const created: GuestPartnerModel[] = [];
+        for (const partner of partners) {
+          // eslint-disable-next-line no-await-in-loop
+          const record = await tx.guestPartner.create({
+            data: {
+              id: randomUUID(),
+              guestId,
+              names: partner.names ?? null,
+              lastName: partner.lastName ?? null,
+              scdLastName: partner.scdLastName ?? null,
+              date: partner.date,
+            },
+          });
+          created.push(record);
+        }
+        return created;
+      });
+    } catch (error) {
+      throw new DatabaseError('Failed to replace guest partners', error as Error);
+    }
+  }
+
+  async replaceGroupMembers(
+    guestId: number,
+    members: Array<{
+      name?: string | null;
+      lastName?: string | null;
+      scdLastName?: string | null;
+      date?: Date;
+      dateInit?: number | null;
+    }>
+  ): Promise<GuestGroupMemberModel[]> {
+    if (!guestId || Number.isNaN(Number(guestId))) {
+      throw new ValidationError('Valid guest ID is required');
+    }
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        await tx.guestGroupMember.deleteMany({ where: { guestId } });
+
+        const created: GuestGroupMemberModel[] = [];
+        for (const member of members) {
+          // eslint-disable-next-line no-await-in-loop
+          const record = await tx.guestGroupMember.create({
+            data: {
+              id: randomUUID(),
+              guestId,
+              name: member.name ?? null,
+              lastName: member.lastName ?? null,
+              scdLastName: member.scdLastName ?? null,
+              date: member.date,
+              dateInit: member.dateInit ?? null,
+            },
+          });
+          created.push(record);
+        }
+        return created;
+      });
+    } catch (error) {
+      throw new DatabaseError('Failed to replace guest group members', error as Error);
     }
   }
 }

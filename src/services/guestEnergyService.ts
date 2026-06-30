@@ -72,6 +72,31 @@ export class GuestEnergyService {
     return this.guestEnergyRepository.deleteGroupMember(id);
   }
 
+  async replacePartners(
+    guestId: number,
+    partners: Array<{
+      names?: string | null;
+      lastName?: string | null;
+      scdLastName?: string | null;
+      date?: Date;
+    }>
+  ): Promise<GuestPartnerModel[]> {
+    return this.guestEnergyRepository.replacePartners(guestId, partners);
+  }
+
+  async replaceGroupMembers(
+    guestId: number,
+    members: Array<{
+      name?: string | null;
+      lastName?: string | null;
+      scdLastName?: string | null;
+      date?: Date;
+      dateInit?: number | null;
+    }>
+  ): Promise<GuestGroupMemberModel[]> {
+    return this.guestEnergyRepository.replaceGroupMembers(guestId, members);
+  }
+
   private validateGuestPartnerData(
     data: Prisma.GuestPartnerUncheckedCreateInput
   ): void {

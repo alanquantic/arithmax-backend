@@ -24,6 +24,8 @@ export class UserController extends Controller {
     this.post('/:userId/guest-energy/group-members', AuthMiddleware.authenticate, this.createGuestEnergyGroupMember.bind(this));
     this.put('/:userId/guest-energy/group-members/:memberId', AuthMiddleware.authenticate, this.updateGuestEnergyGroupMember.bind(this));
     this.delete('/:userId/guest-energy/group-members/:memberId', AuthMiddleware.authenticate, this.deleteGuestEnergyGroupMember.bind(this));
+    this.put('/:userId/guest-energy/partners', AuthMiddleware.authenticate, this.replaceGuestEnergyPartners.bind(this));
+    this.put('/:userId/guest-energy/group-members', AuthMiddleware.authenticate, this.replaceGuestEnergyGroupMembers.bind(this));
     this.get('/:id', AuthMiddleware.authenticate, this.getUserById.bind(this));
     this.post('/', AuthMiddleware.authenticate, this.createUser.bind(this));
     this.put('/:id', AuthMiddleware.authenticate, this.updateUser.bind(this));
@@ -266,6 +268,88 @@ export class UserController extends Controller {
       res.status(200).json(member);
     } catch (error) {
       res.status(500).json({ message: 'Error al eliminar el miembro guest del usuario' });
+    }
+  }
+
+  private async replaceGuestEnergyPartners(req: express.Request, res: express.Response) {
+    try {
+      if (!req.params.userId) {
+        return res.status(400).json({ message: 'ID del usuario es requerido' });
+      }
+
+      const guestEnergy = await this.guestEnergyService.getByUserId(
+        Number(req.params.userId)
+      );
+
+      if (!guestEnergy.guest.id) {
+        return res.status(404).json({ message: 'Guest energy no encontrado para el usuario' });
+      }
+
+      type PartnerInput = {
+        names?: string | null;
+        lastName?: string | null;
+        scdLastName?: string | null;
+        date?: unknown;
+      };
+      const partners: PartnerInput[] = Array.isArray(req.body?.partners) ? req.body.partners : [];
+
+      const result = await this.guestEnergyService.replacePartners(
+        guestEnergy.guest.id,
+        partners.map((partner) => ({
+          names: partner.names ?? null,
+          lastName: partner.lastName ?? null,
+          scdLastName: partner.scdLastName ? String(partner.scdLastName).trim() : null,
+          date: parseDateOnlyInput(partner.date),
+        }))
+      );
+
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({
+        message: error instanceof Error ? error.message : 'Error al reemplazar los partners guest del usuario',
+      });
+    }
+  }
+
+  private async replaceGuestEnergyGroupMembers(req: express.Request, res: express.Response) {
+    try {
+      if (!req.params.userId) {
+        return res.status(400).json({ message: 'ID del usuario es requerido' });
+      }
+
+      const guestEnergy = await this.guestEnergyService.getByUserId(
+        Number(req.params.userId)
+      );
+
+      if (!guestEnergy.guest.id) {
+        return res.status(404).json({ message: 'Guest energy no encontrado para el usuario' });
+      }
+
+      type MemberInput = {
+        name?: string | null;
+        lastName?: string | null;
+        scdLastName?: string | null;
+        date?: unknown;
+        dateInit?: number | string | null;
+      };
+      const members: MemberInput[] = Array.isArray(req.body?.members) ? req.body.members : [];
+
+      const result = await this.guestEnergyService.replaceGroupMembers(
+        guestEnergy.guest.id,
+        members.map((member) => ({
+          name: member.name ?? null,
+          lastName: member.lastName ?? null,
+          scdLastName: member.scdLastName ? String(member.scdLastName).trim() : null,
+          date: parseDateOnlyInput(member.date),
+          dateInit: member.dateInit != null ? Number(member.dateInit) : null,
+        }))
+      );
+
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({
+        message: error instanceof Error ? error.message : 'Error al reemplazar los miembros guest del usuario',
+      });
     }
   }
 }
