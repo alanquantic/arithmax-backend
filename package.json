@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "prisma generate",
     "dev": "ts-node src/main.ts",
+    "migrate:wp": "ts-node src/scripts/migrate-wordpress.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/main.js",
     "lint": "eslint src/**/*.ts",
