@@ -18,6 +18,7 @@
  * Idempotente: se preservan los ids de WP como ids en Neon (upsert por id);
  * las notas hacen upsert por (consultantId, dateKey, pathKey).
  */
+import 'dotenv/config';
 import { readFileSync } from 'fs';
 import { prisma } from '../lib/prisma';
 
@@ -108,7 +109,8 @@ function extractConsultants(raw: unknown): any[] {
 
 async function migratePartnerData(consultantId: string, list: any[]) {
   for (const pd of list || []) {
-    if (!pd?.id) {
+    const partnerDataId = str(pd?.id);
+    if (!partnerDataId) {
       report.warnings.push(`partnerData sin id en consultante ${consultantId}, omitido`);
       continue;
     }
@@ -120,14 +122,15 @@ async function migratePartnerData(consultantId: string, list: any[]) {
     };
     if (!DRY_RUN) {
       await prisma.consultantPartnerData.upsert({
-        where: { id: pd.id },
+        where: { id: partnerDataId },
         update: { ...pdFields, consultantId },
-        create: { id: pd.id, consultantId, ...pdFields },
+        create: { id: partnerDataId, consultantId, ...pdFields },
       });
     }
     for (const p of pd.partner || []) {
-      if (!p?.id) {
-        report.warnings.push(`partner sin id en partnerData ${pd.id}, omitido`);
+      const partnerId = str(p?.id);
+      if (!partnerId) {
+        report.warnings.push(`partner sin id en partnerData ${partnerDataId}, omitido`);
         continue;
       }
       report.partners += 1;
@@ -139,9 +142,9 @@ async function migratePartnerData(consultantId: string, list: any[]) {
       };
       if (!DRY_RUN) {
         await prisma.consultantPartnerDataPartner.upsert({
-          where: { id: p.id },
-          update: { ...partnerFields, partnerDataId: pd.id },
-          create: { id: p.id, partnerDataId: pd.id, ...partnerFields },
+          where: { id: partnerId },
+          update: { ...partnerFields, partnerDataId },
+          create: { id: partnerId, partnerDataId, ...partnerFields },
         });
       }
     }
@@ -150,7 +153,8 @@ async function migratePartnerData(consultantId: string, list: any[]) {
 
 async function migrateGroupData(consultantId: string, list: any[]) {
   for (const g of list || []) {
-    if (!g?.id) {
+    const groupDataId = str(g?.id);
+    if (!groupDataId) {
       report.warnings.push(`groupData sin id en consultante ${consultantId}, omitido`);
       continue;
     }
@@ -163,14 +167,15 @@ async function migrateGroupData(consultantId: string, list: any[]) {
     };
     if (!DRY_RUN) {
       await prisma.consultantGroupData.upsert({
-        where: { id: g.id },
+        where: { id: groupDataId },
         update: { ...groupFields, consultantId },
-        create: { id: g.id, consultantId, ...groupFields },
+        create: { id: groupDataId, consultantId, ...groupFields },
       });
     }
     for (const m of g.members || []) {
-      if (!m?.id) {
-        report.warnings.push(`miembro sin id en groupData ${g.id}, omitido`);
+      const memberId = str(m?.id);
+      if (!memberId) {
+        report.warnings.push(`miembro sin id en groupData ${groupDataId}, omitido`);
         continue;
       }
       report.members += 1;
@@ -183,9 +188,9 @@ async function migrateGroupData(consultantId: string, list: any[]) {
       };
       if (!DRY_RUN) {
         await prisma.consultantGroupDataMember.upsert({
-          where: { id: m.id },
-          update: { ...memberFields, groupDataId: g.id },
-          create: { id: m.id, groupDataId: g.id, ...memberFields },
+          where: { id: memberId },
+          update: { ...memberFields, groupDataId },
+          create: { id: memberId, groupDataId, ...memberFields },
         });
       }
     }
@@ -235,7 +240,8 @@ async function migrateNotes(consultantId: string, notes: any) {
 }
 
 async function migrateConsultant(c: any, userId: number) {
-  if (!c?.id) {
+  const consultantId = str(c?.id);
+  if (!consultantId) {
     report.warnings.push(`consultante sin id (usuario ${userId}), omitido`);
     return;
   }
@@ -253,20 +259,26 @@ async function migrateConsultant(c: any, userId: number) {
   };
   if (!DRY_RUN) {
     await prisma.consultant.upsert({
-      where: { id: c.id },
+      where: { id: consultantId },
       update: { ...consultantFields, userId },
-      create: { id: c.id, userId, ...consultantFields },
+      create: { id: consultantId, userId, ...consultantFields },
     });
   }
-  await migratePartnerData(c.id, c.partnerData);
-  await migrateGroupData(c.id, c.groupData);
-  await migrateCreateNames(c.id, c.createNames);
-  await migrateNotes(c.id, c.notes);
+  await migratePartnerData(consultantId, c.partnerData);
+  await migrateGroupData(consultantId, c.groupData);
+  await migrateCreateNames(consultantId, c.createNames);
+  await migrateNotes(consultantId, c.notes);
 }
 
 async function migrateUser(wpUser: WpUser) {
   if (!wpUser?.email) {
     report.warnings.push(`usuario #${wpUser?.ID} sin email, omitido`);
+    report.usersSkipped += 1;
+    return;
+  }
+  const wpId = toInt(wpUser.ID);
+  if (wpId === null) {
+    report.warnings.push(`usuario ${wpUser.email} con ID inválido (${wpUser.ID}), omitido`);
     report.usersSkipped += 1;
     return;
   }
@@ -278,12 +290,12 @@ async function migrateUser(wpUser: WpUser) {
     birthDate: sanitizeDate(wpUser.birthDate),
     phone: str(wpUser.phone),
   };
-  let userId = wpUser.ID;
+  let userId = wpId;
   if (!DRY_RUN) {
     const dbUser = await prisma.user.upsert({
       where: { email: wpUser.email },
       update: profile,
-      create: { id: wpUser.ID, email: wpUser.email, ...profile },
+      create: { id: wpId, email: wpUser.email, ...profile },
     });
     userId = dbUser.id;
   }
