@@ -4,6 +4,7 @@ import { UserService } from '../services/userService';
 import express from 'express';
 import { AuthMiddleware } from '../middlewares/authMiddleware';
 import { NotFoundError, ValidationError } from '../utils/customErrors';
+import { createCompanyLogoUploadSignature } from '../utils/cloudinary';
 import { parseDateOnlyInput } from '../utils/date';
 
 const getParam = (value: string | string[] | undefined) =>
@@ -16,6 +17,7 @@ export class UserController extends Controller {
 
   protected doInitialize(): void {
     this.get('/', AuthMiddleware.authenticate, this.getAllUsers.bind(this));
+    this.post('/company-logo/signature', AuthMiddleware.authenticate, this.getCompanyLogoUploadSignature.bind(this));
     this.get('/:userId/guest-energy', AuthMiddleware.authenticate, this.getGuestEnergy.bind(this));
     this.post('/:userId/guest-energy', AuthMiddleware.authenticate, this.upsertGuestEnergy.bind(this));
     this.post('/:userId/guest-energy/partners', AuthMiddleware.authenticate, this.createGuestEnergyPartner.bind(this));
@@ -93,6 +95,29 @@ export class UserController extends Controller {
       res.status(200).json(user);
     } catch (error) {
       res.status(500).json({ message: 'Error al actualizar el usuario' });
+    }
+  }
+
+  private async getCompanyLogoUploadSignature(req: express.Request, res: express.Response) {
+    try {
+      const authenticatedRequest = req as express.Request & {
+        user?: {
+          id: number;
+        };
+      };
+
+      if (!authenticatedRequest.user?.id) {
+        return res.status(401).json({ message: 'Usuario no autenticado' });
+      }
+
+      const signature = createCompanyLogoUploadSignature(authenticatedRequest.user.id);
+      res.status(200).json(signature);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return res.status(400).json({ message: error.message });
+      }
+
+      return res.status(500).json({ message: 'Error al generar la firma de Cloudinary' });
     }
   }
 
