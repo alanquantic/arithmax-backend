@@ -3,6 +3,9 @@ import { Prisma } from '@prisma/client';
 export const userPublicSelect = Prisma.validator<Prisma.UserSelect>()({
   id: true,
   email: true,
+  role: true,
+  mustChangePassword: true,
+  lastLoginAt: true,
   firstName: true,
   lastName: true,
   scdLastName: true,

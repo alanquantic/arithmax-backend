@@ -87,11 +87,26 @@ export class UserRepository {
     }
 
     try {
-      return await prisma.user.findUnique({
-        where: { email },
+      return await prisma.user.findFirst({
+        where: { email: { equals: email.trim(), mode: 'insensitive' } },
       });
     } catch (error) {
       throw new DatabaseError('Failed to find user by email', error as Error);
+    }
+  }
+
+  // Registra un login exitoso; aprovecha para re-hashear a bcrypt si el hash era legacy
+  async recordLogin(id: number, newPasswordHash?: string) {
+    try {
+      await prisma.user.update({
+        where: { id },
+        data: {
+          lastLoginAt: new Date(),
+          ...(newPasswordHash ? { passwordHash: newPasswordHash } : {}),
+        },
+      });
+    } catch (error) {
+      throw new DatabaseError('Failed to record login', error as Error);
     }
   }
 

@@ -8,6 +8,16 @@ export class ValidationError extends Error {
   }
 }
 
+export class UnauthorizedError extends Error {
+  public readonly statusCode: number = 401;
+  public readonly isOperational: boolean = true;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+
 export class NotFoundError extends Error {
   public readonly statusCode: number = 404;
   public readonly isOperational: boolean = true;
