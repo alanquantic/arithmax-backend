@@ -47,7 +47,9 @@ export class AuthService {
   async login(data: LoginInput) {
     AuthValidator.validateLoginData(data as unknown as Record<string, unknown>);
 
-    const provider = (process.env.AUTH_PROVIDER ?? 'local').toLowerCase();
+    // Default 'wordpress' durante la transicion: un deploy sin la variable
+    // configurada conserva el login actual en vez de activar el nuevo
+    const provider = (process.env.AUTH_PROVIDER ?? 'wordpress').toLowerCase();
     if (provider === 'wordpress') {
       return this.loginWithWordPress(data);
     }
