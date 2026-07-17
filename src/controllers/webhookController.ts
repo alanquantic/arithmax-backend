@@ -9,6 +9,13 @@ import { ValidationError } from '../utils/customErrors';
 
 type RequestWithRawBody = express.Request & { rawBody?: Buffer };
 
+const headerValue = (req: express.Request, name: string): string | undefined => {
+  const value = req.headers[name];
+  const first = Array.isArray(value) ? value[0] : value;
+  const trimmed = first?.trim();
+  return trimmed || undefined;
+};
+
 export class WebhookController extends Controller {
   protected readonly path: string = '/webhooks';
   private readonly purchaseWebhookService = new PurchaseWebhookService();
@@ -27,9 +34,15 @@ export class WebhookController extends Controller {
         return res.status(401).json({ message: 'Firma invalida' });
       }
 
-      const result = await this.purchaseWebhookService.process(
-        (req.body ?? {}) as StoreWebhookPayload
-      );
+      // event/kind/deliveryId pueden venir en el body o en los headers
+      // X-Nume-Event / X-Nume-Kind / X-Nume-Delivery; el body tiene prioridad
+      const body = (req.body ?? {}) as StoreWebhookPayload;
+      const result = await this.purchaseWebhookService.process({
+        ...body,
+        event: body.event ?? headerValue(req, 'x-nume-event'),
+        kind: body.kind ?? headerValue(req, 'x-nume-kind'),
+        deliveryId: body.deliveryId ?? headerValue(req, 'x-nume-delivery'),
+      });
 
       res.status(200).json(result);
     } catch (error) {
