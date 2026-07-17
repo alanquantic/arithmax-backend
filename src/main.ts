@@ -9,10 +9,20 @@ dotenv.config();
 
 const app = express();
 
+// Railway/proxies: necesario para que rate-limit vea la IP real del cliente
+app.set('trust proxy', 1);
+
 const port = process.env.PORT ?? 3000;
 
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(
+  express.json({
+    // El body crudo se necesita para validar la firma HMAC de los webhooks
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  })
+);
 app.use(cors());
 
 app.get('/', (req, res) =>

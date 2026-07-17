@@ -6,6 +6,7 @@ import {
   NotFoundError,
   DatabaseError,
   BusinessLogicError,
+  UnauthorizedError,
 } from '../utils/customErrors';
 
 export class ErrorMiddleware {
@@ -25,6 +26,16 @@ export class ErrorMiddleware {
       return res.status(e.statusCode).json({
         error: {
           type: 'ValidationError',
+          message: e.message,
+          statusCode: e.statusCode,
+        },
+      });
+    }
+
+    if (e instanceof UnauthorizedError) {
+      return res.status(e.statusCode).json({
+        error: {
+          type: 'UnauthorizedError',
           message: e.message,
           statusCode: e.statusCode,
         },
