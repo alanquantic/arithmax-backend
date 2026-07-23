@@ -94,6 +94,39 @@ export class MailService {
     });
   }
 
+  // Correo de agradecimiento + cross-sell; se envia despues de la bienvenida
+  // o la renovacion para invitar al cliente a conocer el resto del catalogo
+  sendThankYou(
+    to: string,
+    data: { firstName?: string | null }
+  ): Promise<SendResult> {
+    const storeUrl = process.env.STORE_URL;
+    return this.send({
+      to,
+      subject: `Gracias por tu confianza — descubre más de ${BRAND}`,
+      html: layout(`
+        <h2 style="margin:0 0 16px">¡Gracias por tu confianza${data.firstName ? `, ${escapeHtml(data.firstName)}` : ''}!</h2>
+        <p>Queremos agradecerte de corazón por formar parte de la comunidad de
+        <strong>${BRAND}</strong> y Numerología Cotidiana.</p>
+        <p>Además de tu licencia, en nuestra tienda encontrarás mucho más para
+        acompañar tu camino:</p>
+        <ul style="line-height:1.9;padding-left:20px">
+          <li><strong>Reportes personalizados</strong> con análisis a tu medida</li>
+          <li><strong>Membresías</strong> con beneficios y contenido exclusivo</li>
+          <li><strong>Cursos</strong> para profundizar en la numerología</li>
+        </ul>
+        ${
+          storeUrl
+            ? `<p style="margin:24px 0">
+          <a href="${storeUrl}" style="background:#1a56db;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">Explorar la tienda</a>
+        </p>`
+            : ''
+        }
+        <p>Esperamos que disfrutes tu experiencia. ¡Gracias por confiar en nosotros!</p>
+      `),
+    });
+  }
+
   sendPasswordReset(to: string, data: { resetUrl: string }): Promise<SendResult> {
     return this.send({
       to,
