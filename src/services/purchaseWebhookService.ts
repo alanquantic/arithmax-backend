@@ -187,13 +187,18 @@ export class PurchaseWebhookService {
       firstName: user.firstName,
       expiresAt: newExpiry,
     });
+    const thanksNote = await this.sendThankYouAfter(mail.ok, user.email, user.firstName);
 
     return {
       status: 'processed',
       action: 'license_renewed',
       userId: user.id,
       expiresAt: newExpiry.toISOString(),
-      reason: joinNotes(data.note, mail.ok ? undefined : `Correo fallo: ${mail.error}`),
+      reason: joinNotes(
+        data.note,
+        mail.ok ? undefined : `Correo fallo: ${mail.error}`,
+        thanksNote
+      ),
     };
   }
 
@@ -233,14 +238,39 @@ export class PurchaseWebhookService {
       tempPassword,
       expiresAt,
     });
+    const thanksNote = await this.sendThankYouAfter(
+      mail.ok,
+      email,
+      customer.firstName ?? null
+    );
 
     return {
       status: 'processed',
       action: 'user_created',
       userId: created.id,
       expiresAt: expiresAt.toISOString(),
-      reason: joinNotes(data.note, mail.ok ? undefined : `Correo fallo: ${mail.error}`),
+      reason: joinNotes(
+        data.note,
+        mail.ok ? undefined : `Correo fallo: ${mail.error}`,
+        thanksNote
+      ),
     };
+  }
+
+  // El agradecimiento con cross-sell solo se envia si el correo principal
+  // (bienvenida o renovacion) salio bien; su fallo no afecta la compra
+  private async sendThankYouAfter(
+    mainMailOk: boolean,
+    email: string,
+    firstName: string | null
+  ): Promise<string | undefined> {
+    if (!mainMailOk) {
+      return undefined;
+    }
+    const thanks = await this.mailService.sendThankYou(email, { firstName });
+    return thanks.ok
+      ? undefined
+      : `Correo de agradecimiento fallo: ${thanks.error}`;
   }
 }
 
