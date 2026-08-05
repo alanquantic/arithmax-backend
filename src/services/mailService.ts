@@ -9,6 +9,10 @@ type MailInput = {
 };
 
 const BRAND = 'Arithmax';
+const PRIMARY = '#693061';
+const PRIMARY_SOFT = '#f7f0f6';
+const BUTTON_STYLE = `background:${PRIMARY};color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block`;
+const LABEL_STYLE = 'color:#8a8f98;font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:bold';
 
 export class MailService {
   async send({ to, subject, html }: MailInput): Promise<SendResult> {
@@ -60,15 +64,17 @@ export class MailService {
         <p>Gracias por tu compra. Tu licencia de <strong>${BRAND}</strong> ya está activa${
           data.expiresAt ? ` y es vigente hasta el <strong>${formatDate(data.expiresAt)}</strong>` : ''
         }.</p>
-        <p>Estos son tus datos de acceso:</p>
-        <table style="border-collapse:collapse;margin:16px 0">
-          <tr><td style="padding:6px 12px;color:#666">Correo</td><td style="padding:6px 12px"><strong>${escapeHtml(to)}</strong></td></tr>
-          <tr><td style="padding:6px 12px;color:#666">Contraseña temporal</td><td style="padding:6px 12px"><strong>${escapeHtml(data.tempPassword)}</strong></td></tr>
+        <p style="margin:24px 0 8px;${LABEL_STYLE}">Tus accesos</p>
+        <table style="border-collapse:collapse;margin:0 0 16px;border-top:1px solid #eeeeee">
+          <tr><td style="padding:8px 24px 8px 0;color:#8a8f98">Correo</td><td style="padding:8px 0"><strong>${escapeHtml(to)}</strong></td></tr>
+          <tr><td style="padding:8px 24px 8px 0;color:#8a8f98">Contraseña temporal</td><td style="padding:8px 0"><strong style="color:${PRIMARY}">${escapeHtml(data.tempPassword)}</strong></td></tr>
         </table>
         <p style="margin:24px 0">
-          <a href="${softwareUrl}" style="background:#1a56db;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">Ingresar a ${BRAND}</a>
+          <a href="${softwareUrl}" style="${BUTTON_STYLE}">Ingresar a ${BRAND}</a>
         </p>
-        <p style="color:#666">Por seguridad, te pediremos cambiar esta contraseña temporal al entrar por primera vez.</p>
+        <div style="background:${PRIMARY_SOFT};border-radius:8px;padding:14px 18px;color:#4b3a48">
+          👉 Por seguridad, te pediremos cambiar esta contraseña temporal al entrar por primera vez.
+        </div>
         <p>¡Gracias por confiar en nosotros!</p>
       `),
     });
@@ -85,9 +91,9 @@ export class MailService {
       html: layout(`
         <h2 style="margin:0 0 16px">¡Licencia renovada${data.firstName ? `, ${escapeHtml(data.firstName)}` : ''}!</h2>
         <p>Gracias por renovar. Tu licencia de <strong>${BRAND}</strong> ahora es vigente hasta el
-        <strong>${formatDate(data.expiresAt)}</strong>.</p>
+        <strong style="color:${PRIMARY}">${formatDate(data.expiresAt)}</strong>.</p>
         <p style="margin:24px 0">
-          <a href="${softwareUrl}" style="background:#1a56db;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">Ingresar a ${BRAND}</a>
+          <a href="${softwareUrl}" style="${BUTTON_STYLE}">Ingresar a ${BRAND}</a>
         </p>
         <p>¡Gracias por seguir con nosotros!</p>
       `),
@@ -118,7 +124,7 @@ export class MailService {
         ${
           storeUrl
             ? `<p style="margin:24px 0">
-          <a href="${storeUrl}" style="background:#1a56db;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">Explorar la tienda</a>
+          <a href="${storeUrl}" style="${BUTTON_STYLE}">Explorar la tienda</a>
         </p>`
             : ''
         }
@@ -135,9 +141,9 @@ export class MailService {
         <h2 style="margin:0 0 16px">Restablecer contraseña</h2>
         <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
         <p style="margin:24px 0">
-          <a href="${data.resetUrl}" style="background:#1a56db;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none">Crear nueva contraseña</a>
+          <a href="${data.resetUrl}" style="${BUTTON_STYLE}">Crear nueva contraseña</a>
         </p>
-        <p style="color:#666">El enlace expira en 1 hora. Si no solicitaste este cambio, ignora este correo:
+        <p style="color:#8a8f98">El enlace expira en 1 hora. Si no solicitaste este cambio, ignora este correo:
         tu contraseña actual sigue siendo válida.</p>
       `),
     });
@@ -149,8 +155,13 @@ function layout(body: string): string {
 <html lang="es">
   <body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
     <div style="max-width:560px;margin:0 auto;padding:32px 16px">
-      <div style="text-align:center;padding-bottom:16px;font-size:20px;font-weight:bold">${BRAND}</div>
-      <div style="background:#ffffff;border-radius:8px;padding:32px;line-height:1.6">${body}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:${PRIMARY};border-radius:8px 8px 0 0">
+        <tr>
+          <td style="padding:18px 24px;color:#ffffff;font-size:18px;font-weight:bold">${BRAND}</td>
+          <td style="padding:18px 24px;color:#ffffff;font-size:12px;text-align:right">Numerología Cotidiana</td>
+        </tr>
+      </table>
+      <div style="background:#ffffff;border-radius:0 0 8px 8px;padding:32px;line-height:1.6">${body}</div>
       <div style="text-align:center;color:#9ca3af;font-size:12px;padding-top:16px">
         ${BRAND} · Numerología Cotidiana
       </div>
