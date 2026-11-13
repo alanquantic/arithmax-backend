@@ -312,6 +312,7 @@ async function loadUsers() {
       <td>${fmtDate(u.lastLoginAt)}</td>
       <td class="actions">
         <button class="btn secondary small" onclick="openEdit(${u.id})">Editar</button>
+        <button class="btn secondary small" onclick="sendAccess(${u.id}, '${esc(u.email)}')">Enviar accesos</button>
         <button class="btn secondary small" onclick="sendReset(${u.id}, '${esc(u.email)}')">Reset</button>
         <button class="btn danger small" onclick="removeUser(${u.id}, '${esc(u.email)}')">Eliminar</button>
       </td>
@@ -413,6 +414,15 @@ async function sendReset(id, email) {
   try {
     await api(`/admin/api/users/${id}/send-reset`, { method: 'POST' });
     toast('Correo de restablecimiento enviado');
+  } catch (err) { toast(err.message, true); }
+}
+
+async function sendAccess(id, email) {
+  if (!confirm(`¿Enviar correo de bienvenida con accesos a ${email}?\n\nSe generará una contraseña temporal nueva; la contraseña actual del usuario dejará de funcionar.`)) return;
+  try {
+    const res = await api(`/admin/api/users/${id}/send-access`, { method: 'POST' });
+    toast(res.thankYouSent ? 'Accesos enviados' : 'Accesos enviados (el correo de agradecimiento falló)');
+    loadUsers();
   } catch (err) { toast(err.message, true); }
 }
 

@@ -23,6 +23,7 @@ export class AdminController extends Controller {
     this.put('/api/users/:id', ...guard, this.updateUser.bind(this));
     this.delete('/api/users/:id', ...guard, this.deleteUser.bind(this));
     this.post('/api/users/:id/send-reset', ...guard, this.sendReset.bind(this));
+    this.post('/api/users/:id/send-access', ...guard, this.sendAccess.bind(this));
     this.get('/api/purchase-events', ...guard, this.listPurchaseEvents.bind(this));
   }
 
@@ -103,6 +104,18 @@ export class AdminController extends Controller {
     try {
       const user = await this.adminUserService.getUser(Number(req.params.id));
       res.status(200).json(await this.authService.forgotPassword(user.email));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async sendAccess(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    try {
+      res.status(200).json(await this.adminUserService.sendAccess(Number(req.params.id)));
     } catch (error) {
       next(error);
     }
