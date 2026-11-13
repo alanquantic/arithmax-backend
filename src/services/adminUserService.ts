@@ -1,9 +1,14 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { userPublicSelect } from '../models/userModel';
-import { hashPassword } from '../utils/passwords';
+import { generateTempPassword, hashPassword } from '../utils/passwords';
+import { MailService } from './mailService';
 import { parseDateOnlyInput } from '../utils/date';
-import { NotFoundError, ValidationError } from '../utils/customErrors';
+import {
+  BusinessLogicError,
+  NotFoundError,
+  ValidationError,
+} from '../utils/customErrors';
 
 type LicenseInput = {
   status?: number | null;
@@ -43,6 +48,8 @@ const parseNullableDate = (value: string | null | undefined): Date | null | unde
 };
 
 export class AdminUserService {
+  private readonly mailService = new MailService();
+
   async listUsers(search: string, page: number, pageSize: number) {
     const where: Prisma.UserWhereInput = search
       ? {
@@ -183,6 +190,70 @@ export class AdminUserService {
     // El schema define onDelete: Cascade para license/consultants/guests/tokens
     await prisma.user.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  // Alta manual (compra fuera del webhook): genera una contraseña temporal y
+  // envia el mismo correo de bienvenida que el webhook, seguido del agradecimiento
+  async sendAccess(id: number) {
+    await this.ensureExists(id);
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id },
+      select: {
+        email: true,
+        firstName: true,
+        passwordHash: true,
+        mustChangePassword: true,
+        license: { select: { status: true, expirationDate: true } },
+      },
+    });
+
+    // El correo afirma que la licencia esta activa: no enviarlo si no lo esta
+    const expiresAt = user.license?.expirationDate ?? null;
+    if (user.license?.status !== 1 || (expiresAt && expiresAt < new Date())) {
+      throw new ValidationError(
+        'El usuario no tiene una licencia activa y vigente; asignala antes de enviar los accesos'
+      );
+    }
+
+    const tempPassword = generateTempPassword();
+    await prisma.user.update({
+      where: { id },
+      data: {
+        passwordHash: await hashPassword(tempPassword),
+        mustChangePassword: true,
+      },
+    });
+
+    const mail = await this.mailService.sendWelcome(user.email, {
+      firstName: user.firstName,
+      tempPassword,
+      expiresAt,
+    });
+
+    if (!mail.ok) {
+      // Sin correo el cliente nunca veria la contraseña nueva: se restaura la anterior
+      await prisma.user.update({
+        where: { id },
+        data: {
+          passwordHash: user.passwordHash,
+          mustChangePassword: user.mustChangePassword,
+        },
+      });
+      throw new BusinessLogicError(
+        `No se pudo enviar el correo de accesos: ${mail.error}`
+      );
+    }
+
+    const thanks = await this.mailService.sendThankYou(user.email, {
+      firstName: user.firstName,
+    });
+
+    return {
+      sent: true,
+      email: user.email,
+      thankYouSent: thanks.ok,
+      ...(thanks.ok ? {} : { thankYouError: thanks.error }),
+    };
   }
 
   async listPurchaseEvents(limit: number) {
