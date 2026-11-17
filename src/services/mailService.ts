@@ -55,7 +55,7 @@ export class MailService {
     to: string,
     data: { firstName?: string | null; tempPassword: string; expiresAt?: Date | null }
   ): Promise<SendResult> {
-    const softwareUrl = process.env.SOFTWARE_URL ?? '#';
+    const softwareUrl = loginUrl();
     return this.send({
       to,
       subject: `Bienvenido a ${BRAND} — tus accesos`,
@@ -84,7 +84,7 @@ export class MailService {
     to: string,
     data: { firstName?: string | null; expiresAt: Date }
   ): Promise<SendResult> {
-    const softwareUrl = process.env.SOFTWARE_URL ?? '#';
+    const softwareUrl = loginUrl();
     return this.send({
       to,
       subject: `Tu licencia de ${BRAND} fue renovada`,
@@ -147,6 +147,22 @@ export class MailService {
         tu contraseña actual sigue siendo válida.</p>
       `),
     });
+  }
+}
+
+// URL del boton "Ingresar": siempre la pantalla de login. LOGIN_URL la fija
+// explicitamente; si no, se deriva del dominio de SOFTWARE_URL
+const DEFAULT_LOGIN_URL = 'https://arithmax.numerologia-cotidiana.com/login';
+
+function loginUrl(): string {
+  const explicit = process.env.LOGIN_URL?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  try {
+    return new URL('/login', process.env.SOFTWARE_URL).toString();
+  } catch {
+    return DEFAULT_LOGIN_URL;
   }
 }
 
