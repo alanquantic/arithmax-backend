@@ -24,6 +24,7 @@ export class AdminController extends Controller {
     this.delete('/api/users/:id', ...guard, this.deleteUser.bind(this));
     this.post('/api/users/:id/send-reset', ...guard, this.sendReset.bind(this));
     this.post('/api/users/:id/send-access', ...guard, this.sendAccess.bind(this));
+    this.post('/api/users/:id/send-renewal', ...guard, this.sendRenewal.bind(this));
     this.get('/api/purchase-events', ...guard, this.listPurchaseEvents.bind(this));
   }
 
@@ -116,6 +117,18 @@ export class AdminController extends Controller {
   ) {
     try {
       res.status(200).json(await this.adminUserService.sendAccess(Number(req.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  private async sendRenewal(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
+    try {
+      res.status(200).json(await this.adminUserService.sendRenewal(Number(req.params.id)));
     } catch (error) {
       next(error);
     }
