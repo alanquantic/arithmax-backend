@@ -256,6 +256,50 @@ export class AdminUserService {
     };
   }
 
+  // Renovacion manual: tras extender la licencia en el panel, avisa al cliente
+  // de la nueva vigencia con el mismo correo que el webhook. No toca la contraseña
+  async sendRenewal(id: number) {
+    await this.ensureExists(id);
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id },
+      select: {
+        email: true,
+        firstName: true,
+        license: { select: { status: true, expirationDate: true } },
+      },
+    });
+
+    // El correo anuncia la fecha de vigencia: debe existir y ser futura
+    const expiresAt = user.license?.expirationDate ?? null;
+    if (user.license?.status !== 1 || !expiresAt || expiresAt < new Date()) {
+      throw new ValidationError(
+        'El usuario no tiene una licencia activa con vencimiento futuro; actualizala antes de enviar la renovacion'
+      );
+    }
+
+    const mail = await this.mailService.sendRenewal(user.email, {
+      firstName: user.firstName,
+      expiresAt,
+    });
+    if (!mail.ok) {
+      throw new BusinessLogicError(
+        `No se pudo enviar el correo de renovacion: ${mail.error}`
+      );
+    }
+
+    const thanks = await this.mailService.sendThankYou(user.email, {
+      firstName: user.firstName,
+    });
+
+    return {
+      sent: true,
+      email: user.email,
+      expiresAt: expiresAt.toISOString(),
+      thankYouSent: thanks.ok,
+      ...(thanks.ok ? {} : { thankYouError: thanks.error }),
+    };
+  }
+
   async listPurchaseEvents(limit: number) {
     return prisma.purchaseEvent.findMany({
       orderBy: { createdAt: 'desc' },
